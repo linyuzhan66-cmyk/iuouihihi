@@ -1,0 +1,48 @@
+name: ElevenLabs TTS test
+
+on:
+  workflow_dispatch:
+    inputs:
+      voice_id:
+        description: Optional ElevenLabs voice ID. Leave blank to use the test voice.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  generate-mp3:
+    name: Generate Traditional Chinese MP3
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate narration
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          VOICE_ID: ${{ inputs.voice_id }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$VOICE_ID" ]]; then
+            python scripts/generate_tts.py --voice-id "$VOICE_ID"
+          else
+            python scripts/generate_tts.py
+          fi
+
+      - name: Upload MP3 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: elevenlabs-tts-mp3
+          path: output/investment_research_zh-TW.mp3
+          if-no-files-found: error
+          retention-days: 7
+  
