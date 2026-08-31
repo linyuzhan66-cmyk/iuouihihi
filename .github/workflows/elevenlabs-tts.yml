@@ -1,5 +1,12 @@
 name: ElevenLabs TTS test
 
+# Issue body format:
+# text: |
+#   要轉換的繁體中文內容
+# voice_ids:
+#   - first_voice_id
+#   - second_voice_id
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,6 +14,8 @@ on:
         description: Optional ElevenLabs voice ID. Leave blank to use the test voice.
         required: false
         type: string
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
@@ -14,6 +23,9 @@ permissions:
 jobs:
   generate-mp3:
     name: Generate Traditional Chinese MP3
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.issue.title, '[TTS]')
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -30,9 +42,12 @@ jobs:
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           VOICE_ID: ${{ inputs.voice_id }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          if [[ -n "$VOICE_ID" ]]; then
+          if [[ "$EVENT_NAME" == "issues" ]]; then
+            python scripts/generate_tts.py --issue-event-file "$GITHUB_EVENT_PATH"
+          elif [[ -n "$VOICE_ID" ]]; then
             python scripts/generate_tts.py --voice-id "$VOICE_ID"
           else
             python scripts/generate_tts.py
@@ -42,7 +57,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: elevenlabs-tts-mp3
-          path: output/investment_research_zh-TW.mp3
+          path: output/*.mp3
           if-no-files-found: error
           retention-days: 7
   
